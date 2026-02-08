@@ -1,44 +1,138 @@
 package com.example.expanse_tracker.service;
 
-import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.mail.SimpleMailMessage;
-import org.springframework.mail.javamail.JavaMailSender;
-import org.springframework.mail.javamail.MimeMessageHelper;
+import org.springframework.http.*;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
 
 @Service
 @RequiredArgsConstructor
 public class EmailService {
 
-    private final JavaMailSender mailSender;
+    @Value("${api.key.brevo}")
+    private String brevoApiKey;
 
-    @Value("${spring.mail.properties.mail.smtp.from}")
-    private String fromEmail;
+    private final RestTemplate restTemplate = new RestTemplate();
 
+    private static final String BREVO_URL = "https://api.brevo.com/v3/smtp/email";
 
-    public void sendEmail(String to, String subject, String body) {
-        try{
-            MimeMessage message = mailSender.createMimeMessage();
-            MimeMessageHelper helper = new MimeMessageHelper(message, true);
+    // ✅ USED BY NotificationService
+    @Async
+    public void sendEmail(String toEmail, String subject, String htmlBody) {
 
-            helper.setFrom(fromEmail);
-            helper.setTo(to);
-            helper.setSubject(subject);
-            helper.setText(body, true); // ✅ HTML enabled
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.set("api-key", brevoApiKey);
 
-            mailSender.send(message);
-
-//            SimpleMailMessage message=new SimpleMailMessage();
-//            message.setFrom(fromEmail);
-//            message.setTo(to);
-//            message.setSubject(subject);
-//            message.setText(body);
-//            mailSender.send(message);
+        String body = """
+        {
+          "sender": {
+            "name": "Money Manager",
+            "email": "sauravkr81.93@gmail.com"
+          },
+          "to": [{
+            "email": "%s"
+          }],
+          "subject": "%s",
+          "htmlContent": "%s"
         }
-        catch (Exception e){
-            throw new RuntimeException(e.getMessage());
+        """.formatted(
+                toEmail,
+                subject,
+                htmlBody.replace("\"", "\\\"") // escape quotes
+        );
+
+        HttpEntity<String> request = new HttpEntity<>(body, headers);
+
+        try {
+            restTemplate.postForEntity(BREVO_URL, request, String.class);
+        } catch (Exception e) {
+            // Never crash schedulers
+            System.err.println("Brevo email failed: " + e.getMessage());
         }
     }
+
+    // ✅ USED DURING REGISTRATION
+    @Async
+    public void sendActivationEmail(String toEmail, String toName, String activationLink) {
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.set("api-key", brevoApiKey);
+
+        String body = """
+        {
+          "sender": {
+            "name": "Money Manager",
+            "email": "sauravkr81.93@gmail.com"
+          },
+          "to": [{
+            "email": "%s",
+            "name": "%s"
+          }],
+          "subject": "Activate your account",
+          "htmlContent": "<p>Click below to activate your account:</p><a href='%s'>Activate Account</a>"
+        }
+        """.formatted(toEmail, toName, activationLink);
+
+        HttpEntity<String> request = new HttpEntity<>(body, headers);
+
+        try {
+            restTemplate.postForEntity(BREVO_URL, request, String.class);
+        } catch (Exception e) {
+            System.err.println("Brevo activation email failed: " + e.getMessage());
+        }
+    }
+
+    //Sending email as attachment
+    @Async
+    public void sendEmailWithAttachment(
+            String toEmail,
+            String subject,
+            String htmlBody,
+            byte[] attachmentBytes,
+            String fileName
+    ) {
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.set("api-key", brevoApiKey);
+
+        String base64File = java.util.Base64.getEncoder().encodeToString(attachmentBytes);
+
+        String body = """
+    {
+      "sender": {
+        "name": "Money Manager",
+        "email": "sauravkr81.93@gmail.com"
+      },
+      "to": [{
+        "email": "%s"
+      }],
+      "subject": "%s",
+      "htmlContent": "%s",
+      "attachment": [{
+        "content": "%s",
+        "name": "%s"
+      }]
+    }
+    """.formatted(
+                toEmail,
+                subject,
+                htmlBody.replace("\"", "\\\""),
+                base64File,
+                fileName
+        );
+
+        HttpEntity<String> request = new HttpEntity<>(body, headers);
+
+        try {
+            restTemplate.postForEntity(BREVO_URL, request, String.class);
+        } catch (Exception e) {
+            System.err.println("Brevo email with attachment failed: " + e.getMessage());
+        }
+    }
+
 }

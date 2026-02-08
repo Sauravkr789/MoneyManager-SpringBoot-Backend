@@ -1,9 +1,7 @@
 package com.example.expanse_tracker.service;
 
-import com.example.expanse_tracker.dto.ExpenseDTO;
 import com.example.expanse_tracker.dto.IncomeDTO;
 import com.example.expanse_tracker.entity.CategoryEntity;
-import com.example.expanse_tracker.entity.ExpenseEntity;
 import com.example.expanse_tracker.entity.IncomeEntity;
 import com.example.expanse_tracker.entity.ProfileEntity;
 
@@ -12,7 +10,6 @@ import com.example.expanse_tracker.repository.IncomeRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
-
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
@@ -115,4 +112,5 @@ public class IncomeService {
                 .categoryName(entity.getCategory().getName())
                 .build();
     }
+
 }

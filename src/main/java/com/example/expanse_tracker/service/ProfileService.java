@@ -36,10 +36,15 @@ public class ProfileService {
         newProfile = profileRepository.save(newProfile);
 
         // Send activation email logic
-        String activationLink = activationUrl+"/api/v1.0/activate?token=" + newProfile.getActivationToken();
+        String activationLink = activationUrl+"/activate?token=" + newProfile.getActivationToken();
         String subject = "Activate your account";
         String body = "Click the following link to activate your account: " + activationLink;
-         emailService.sendEmail(newProfile.getEmail(), subject, body);
+        emailService.sendActivationEmail(
+                newProfile.getEmail(),
+                newProfile.getFullName(),
+                activationLink
+        );
+//         emailService.sendEmail(newProfile.getEmail(), subject, body);
         return toDTO(newProfile); // Placeholder return
     }
 

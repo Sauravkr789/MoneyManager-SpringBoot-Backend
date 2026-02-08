@@ -48,6 +48,7 @@ public class NotificationService {
     }
 
 
+//    @Scheduled(cron = "0 * * * * *", zone = "Asia/Kolkata") // Every minute for testing
     @Scheduled(cron = "0 0 23 * * *", zone = "Asia/Kolkata") // Every day at 11 PM IST
     public void sendDailyExpenseSummary()
     {
